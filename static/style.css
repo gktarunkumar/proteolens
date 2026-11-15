@@ -723,7 +723,7 @@ tbody tr:hover {
   border-bottom: 2px solid #ca8a04;
 }
 
-/* --- Charts Styling --- */
+/* --- Charts Styling & Responsive Wrappers --- */
 figure {
   margin: 1.5rem 0;
 }
@@ -736,8 +736,67 @@ figure figcaption h4 {
   color: var(--text-main);
 }
 
-canvas {
+.chart-mobile-hint {
+  display: none;
+  font-size: 0.74rem;
+  color: var(--apple-blue);
+  margin-top: 0.2rem;
+  font-weight: 600;
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 230px;
   margin-bottom: 1rem;
+}
+
+.aa-chart-card {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  padding: 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.aa-chart-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.75rem;
+}
+
+.chart-scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.4rem;
+}
+
+.chart-scroll-inner {
+  position: relative;
+  width: 100%;
+  min-width: 520px;
+  height: 210px;
+}
+
+@media (min-width: 768px) {
+  .chart-container {
+    height: 270px;
+  }
+  .chart-scroll-inner {
+    min-width: 100%;
+    height: 240px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-mobile-hint {
+    display: block;
+  }
+  .aa-chart-card {
+    padding: 0.85rem 0.65rem;
+  }
 }
 
 /* --- Footer --- */
