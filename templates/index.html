@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProteoLens — Protein Sequence Analyzer & Comparative Biochemistry</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Chart.js served locally for reliable offline hackathon demos -->
+  <script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+</head>
+<body>
+
+  <!-- Skip link for keyboard & screen-reader navigation -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Floating Translucent Glass Header (Apple HIG) -->
+  <header class="glass-header">
+    <div class="brand-wrap">
+      <div class="brand-icon">🧬</div>
+      <div class="brand-text">
+        <h1>
+          ProteoLens
+          <span class="version-badge">Apple HIG</span>
+        </h1>
+        <p>Comparative Protein Sequence & Physicochemical Analytics</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" id="header-load-example" class="btn-secondary" style="min-block-size: 38px; padding: 0.4rem 1rem; font-size: 0.8rem;">
+        ⚡ Load Demo
+      </button>
+      {% if results %}
+      <button type="button" id="header-download-csv" class="btn-green" style="min-block-size: 38px; padding: 0.4rem 1rem; font-size: 0.8rem;">
+        ⬇ Export CSV
+      </button>
+      {% endif %}
+    </div>
+  </header>
+
+  <main id="main-content">
+
+    <!-- Input Section Card -->
+    <section class="apple-card" aria-labelledby="input-heading">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2 id="input-heading">Sequence Ingestion</h2>
+          <p class="card-subtitle">Paste FASTA sequences or drag-and-drop a file for instant validation</p>
+        </div>
+        <div class="segmented-control" role="tablist">
+          <button type="button" class="seg-btn active" id="tab-paste" role="tab" aria-selected="true">
+            📝 Paste FASTA
+          </button>
+          <button type="button" class="seg-btn" id="tab-file" role="tab" aria-selected="false">
+            📂 Upload File
+          </button>
+        </div>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data" id="analysis-form"
+            aria-describedby="{% if errors %}error-list{% endif %}">
+
+        <!-- Paste Text View -->
+        <div id="paste-view" class="input-group">
+          <label for="fasta_input" class="sr-only">Protein Sequence in FASTA Format</label>
+          <textarea
+            id="fasta_input"
+            name="fasta_input"
+            rows="8"
+            spellcheck="false"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            {% if errors %}aria-invalid="true"{% endif %}
+            placeholder=">Ubiquitin
+MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG
+>Histone_H4
+SGRGKGGKGLGKGGAKRHRKVLRDNIQGITKPAIRRLARRGGVKRISGLIYEETRGVLKVFLENVIRDAVTYTEHAKRKTVTAMDVVYALKRQGRTLYGFGG"
+          >{{ raw_input }}</textarea>
+        </div>
+
+        <!-- File Upload View (Dashed Drag-and-Drop Zone) -->
+        <div id="file-view" class="input-group" style="display: none;">
+          <div class="file-upload-box" id="drop-zone">
+            <span class="upload-icon">📁</span>
+            <p class="upload-title">Drop your FASTA file here or click to browse</p>
+            <p class="upload-subtitle">Accepts .fasta, .fa, and .txt files</p>
+            <input type="file" id="fasta_file" name="fasta_file" accept=".fasta,.fa,.txt" style="display: none;">
+            <div id="file-name-display" class="file-name-display" style="display: none;">No file selected</div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <div style="font-size: 0.78rem; color: var(--text-tertiary);">
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--apple-green); margin-right: 4px;"></span>
+            Strict 20-canonical amino acid validation active
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" id="load-example" class="btn-secondary">Load Example</button>
+            <button type="submit" class="btn-primary" id="btn-submit">Analyze Sequences →</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Error Alerts -->
+    {% if errors %}
+    <section class="errors" role="alert" aria-labelledby="errors-heading">
+      <h2 id="errors-heading">⚠️ Validation Issues Found</h2>
+      <ul id="error-list">
+        {% for error in errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <!-- Screen Reader Status Announcement -->
+    <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
+      {% if results %}Analysis complete. {{ results | length }} sequence(s) processed successfully.{% endif %}
+    </div>
+
+    {% if results %}
+
+    <!-- KPI Summary Row -->
+    <section class="kpi-grid" aria-label="Summary Metrics">
+      <div class="kpi-card">
+        <p class="kpi-label">Sequences Analyzed</p>
+        <p class="kpi-value" style="color: var(--apple-blue);">{{ results | length }}</p>
+        <p class="kpi-subtext">Multi-protein dataset</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Avg. Mol. Weight</p>
+        {% set total_mw = namespace(value=0) %}
+        {% for r in results %}{% set total_mw.value = total_mw.value + r.stats.molecular_weight %}{% endfor %}
+        <p class="kpi-value">{{ (total_mw.value / (results | length)) | round(1) }} <span style="font-size: 1rem; font-weight: 500;">Da</span></p>
+        <p class="kpi-subtext">Estimated dry mass</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Secondary Conformation</p>
+        <p class="kpi-value" style="color: var(--apple-purple); font-size: 1.45rem;">Helix / Sheet</p>
+        <p class="kpi-subtext">Bonus Feature active</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Total Motif Hits</p>
+        {% set total_motifs = namespace(count=0) %}
+        {% for r in results %}{% for m in r.motifs %}{% set total_motifs.count = total_motifs.count + m.count %}{% endfor %}{% endfor %}
+        <p class="kpi-value" style="color: var(--apple-amber);">{{ total_motifs.count }}</p>
+        <p class="kpi-subtext">Across 5 biological patterns</p>
+      </div>
+    </section>
+
+    <!-- Main Results Section -->
+    <section class="apple-card" aria-labelledby="results-heading">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2 id="results-heading">Physicochemical Properties Matrix</h2>
+          <p class="card-subtitle">Comprehensive analytical comparison computed with Biopython ProtParam</p>
+        </div>
+        <button type="button" id="download-csv" class="btn-green" style="min-block-size: 38px; padding: 0.45rem 1.1rem; font-size: 0.82rem;">
+          ⬇ Export CSV Report
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table aria-label="Physicochemical properties comparison table">
+          <caption class="sr-only">Physicochemical properties for analyzed proteins</caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Length</th>
+              <th scope="col">Mol. Weight</th>
+              <th scope="col">pI (Charge)</th>
+              <th scope="col">Stability Index</th>
+              <th scope="col">GRAVY Hydropathy</th>
+              <th scope="col">Secondary Structure</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results %}
+            <tr>
+              <td><span class="prot-name">{{ r.name }}</span></td>
+              <td><code>{{ r.stats.length }} aa</code></td>
+              <td><code>{{ r.stats.molecular_weight }} Da</code></td>
+              <td>
+                <code style="font-weight: 700; color: {% if r.stats.isoelectric_point > 7 %}var(--apple-blue){% else %}var(--apple-amber){% endif %};">
+                  {{ r.stats.isoelectric_point }}
+                </code>
+              </td>
+              <td>
+                {% if r.stats.instability_index < 40 %}
+                  <span class="tag stable">{{ r.stats.instability_index }} · stable</span>
+                  <small class="interp">Expected to stay intact in solution.</small>
+                {% else %}
+                  <span class="tag unstable">{{ r.stats.instability_index }} · unstable</span>
+                  <small class="interp">May degrade rapidly in wet-lab assays.</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if r.stats.gravy < 0 %}
+                  <span class="tag hydrophilic">{{ r.stats.gravy }} · hydrophilic</span>
+                  <small class="interp">Water soluble; folds surface-outward.</small>
+                {% else %}
+                  <span class="tag hydrophobic">{{ r.stats.gravy }} · hydrophobic</span>
+                  <small class="interp">Membrane-bound or internal core.</small>
+                {% endif %}
+              </td>
+              <td>
+                <small class="struct-compact">
+                  🌀 H: {{ r.stats.secondary_structure.helix }}%<br>
+                  📄 S: {{ r.stats.secondary_structure.sheet }}%<br>
+                  🔄 T: {{ r.stats.secondary_structure.turn }}%
+                </small>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Secondary Structure Visual Activity Cards (Bonus Feature) -->
+    <section class="apple-card" aria-labelledby="sec-struct-heading">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h3 id="sec-struct-heading">
+            Secondary Structure Annotations
+            <span class="version-badge" style="background: rgba(175, 82, 222, 0.1); color: var(--apple-purple); border-color: rgba(175, 82, 222, 0.2);">
+              Bonus Feature
+            </span>
+          </h3>
+          <p class="card-subtitle">Predicted folding propensities based on Chou-Fasman / Deleage-Roux algorithms</p>
+        </div>
+        <div class="struct-legend" style="gap: 1rem;">
+          <span class="legend-item"><span class="color-dot helix-dot"></span> 🌀 Alpha-Helix</span>
+          <span class="legend-item"><span class="color-dot sheet-dot"></span> 📄 Beta-Sheet</span>
+          <span class="legend-item"><span class="color-dot turn-dot"></span> 🔄 Turn</span>
+        </div>
+      </div>
+
+      <div class="sec-struct-grid">
+        {% for r in results %}
+        <div class="sec-struct-card">
+          <h4>
+            <span>{{ r.name }}</span>
+            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 400;">{{ r.stats.length }} residues</span>
+          </h4>
+          <div class="struct-bar" role="img" aria-label="Secondary structure composition: Helix {{ r.stats.secondary_structure.helix }}%, Sheet {{ r.stats.secondary_structure.sheet }}%, Turn {{ r.stats.secondary_structure.turn }}%">
+            <div class="struct-segment struct-helix" style="width: {{ r.stats.secondary_structure.helix }}%;" title="Helix: {{ r.stats.secondary_structure.helix }}%"></div>
+            <div class="struct-segment struct-sheet" style="width: {{ r.stats.secondary_structure.sheet }}%;" title="Sheet: {{ r.stats.secondary_structure.sheet }}%"></div>
+            <div class="struct-segment struct-turn" style="width: {{ r.stats.secondary_structure.turn }}%;" title="Turn: {{ r.stats.secondary_structure.turn }}%"></div>
+          </div>
+          <div class="struct-legend">
+            <span class="legend-item"><span class="color-dot helix-dot"></span> <strong>Helix:</strong> {{ r.stats.secondary_structure.helix }}%</span>
+            <span class="legend-item"><span class="color-dot sheet-dot"></span> <strong>Sheet:</strong> {{ r.stats.secondary_structure.sheet }}%</span>
+            <span class="legend-item"><span class="color-dot turn-dot"></span> <strong>Turn:</strong> {{ r.stats.secondary_structure.turn }}%</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Interactive Sequence Motif Visualizer -->
+    <section class="apple-card" aria-labelledby="motif-heading">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h3 id="motif-heading">
+            Interactive Sequence Motif Map
+            <span class="version-badge" style="background: rgba(255, 149, 0, 0.1); color: var(--apple-amber); border-color: rgba(255, 149, 0, 0.2);">
+              Visual Bonus
+            </span>
+          </h3>
+          <p class="card-subtitle">Click any motif pill to highlight its exact matching amino acid loci on the sequence track</p>
+        </div>
+      </div>
+
+      {% for r in results %}
+      <div class="motif-card">
+        <div class="motif-header">
+          <h4>{{ r.name }}</h4>
+          <div class="motif-chips">
+            {% if r.motifs %}
+              {% for m in r.motifs %}
+              <button type="button" class="motif-chip-btn"
+                      data-protein-idx="{{ loop.index0 }}"
+                      data-motif-name="{{ m.name }}"
+                      data-positions='{{ m.positions | tojson }}'
+                      title="{{ m.description }}">
+                ⚡ {{ m.name }} ({{ m.count }})
+              </button>
+              {% endfor %}
+            {% else %}
+              <span style="font-size: 0.75rem; color: var(--text-tertiary); font-style: italic;">No known motifs detected</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Physical sequence viewer with 1-based motif highlighting -->
+        <div class="sequence-viewer" id="seq-viewer-{{ loop.index0 }}" data-raw-seq="{{ r.sequence }}">
+          {{ r.sequence }}
+        </div>
+        <p style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.5rem; font-style: italic;">
+          Tip: Tap any motif pill above to light up its positions along the sequence.
+        </p>
+      </div>
+      {% endfor %}
+    </section>
+
+    <!-- Comparative Visual Charts -->
+    <section class="apple-card" aria-labelledby="charts-heading">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h3 id="charts-heading">Comparative Visual Analytics</h3>
+          <p class="card-subtitle">Chart.js distributions with highest composition residue highlighted</p>
+        </div>
+      </div>
+
+      <figure>
+        <figcaption><h4>Molecular Weight Comparison (Da)</h4></figcaption>
+        <canvas id="weightChart" height="90" role="img"
+                aria-label="Bar chart comparing molecular weight of {{ results | length }} protein(s)"></canvas>
+      </figure>
+
+      <figure style="margin-top: 2rem;">
+        <figcaption><h4>Amino Acid Composition Profiles</h4></figcaption>
+        {% for r in results %}
+          <div style="margin-bottom: 1.5rem;">
+            <p style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.5rem;">
+              {{ r.name }}
+            </p>
+            <canvas class="aaChart" id="aaChart-{{ loop.index }}" height="70"
+                    data-aa='{{ r.stats.amino_acid_percent | tojson }}'
+                    aria-label="Amino acid composition for {{ r.name }}" role="img"></canvas>
+          </div>
+        {% endfor %}
+      </figure>
+    </section>
+
+    {% endif %}
+
+  </main>
+
+  <!-- Apple-Style Footer -->
+  <footer>
+    <p><strong>ProteoLens</strong> · Problem HTH-SW-04 · Computational Protein Analysis Platform</p>
+    <p>Calculated physicochemical estimates derived via Biopython ProtParam. Not experimentally confirmed atomic coordinates.</p>
+  </footer>
+
+  <script>
+    // --- Segmented Control Tabs (Paste vs Upload) ---
+    const tabPaste = document.getElementById("tab-paste");
+    const tabFile = document.getElementById("tab-file");
+    const pasteView = document.getElementById("paste-view");
+    const fileView = document.getElementById("file-view");
+    const dropZone = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("fasta_file");
+    const fileNameDisplay = document.getElementById("file-name-display");
+
+    tabPaste.addEventListener("click", function() {
+      tabPaste.classList.add("active");
+      tabPaste.setAttribute("aria-selected", "true");
+      tabFile.classList.remove("active");
+      tabFile.setAttribute("aria-selected", "false");
+      pasteView.style.display = "block";
+      fileView.style.display = "none";
+    });
+
+    tabFile.addEventListener("click", function() {
+      tabFile.classList.add("active");
+      tabFile.setAttribute("aria-selected", "true");
+      tabPaste.classList.remove("active");
+      tabPaste.setAttribute("aria-selected", "false");
+      fileView.style.display = "block";
+      pasteView.style.display = "none";
+    });
+
+    // --- Drag and Drop File Handlers ---
+    dropZone.addEventListener("click", function() {
+      fileInput.click();
+    });
+
+    ["dragenter", "dragover"].forEach(function(eventName) {
+      dropZone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(function(eventName) {
+      dropZone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+      });
+    });
+
+    dropZone.addEventListener("drop", function(e) {
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        updateFileName();
+      }
+    });
+
+    fileInput.addEventListener("change", updateFileName);
+
+    function updateFileName() {
+      if (fileInput.files.length) {
+        fileNameDisplay.textContent = "Selected: " + fileInput.files[0].name;
+        fileNameDisplay.style.display = "inline-block";
+      } else {
+        fileNameDisplay.style.display = "none";
+      }
+    }
+
+    // --- "Load Example" buttons ---
+    function loadExampleData() {
+      // Switch to paste tab
+      tabPaste.click();
+      document.getElementById("fasta_input").value =
+`>Sample1_Lysozyme
+KVFGRCELAAAMKRHGLDNYRGYSLGNWVCAAKFESNFNTQATNRNTDGSTDYGILQINSRWWCNDGRTPGSRNLCNIPCSALLSSDITASVNCAKKIVSDGNGMNAWVAWRNRCKGTDVQAWIRGCRL
+>Sample2_Insulin
+GIVEQCCTSICSLYQLENYCN`;
+    }
+
+    document.getElementById("load-example").addEventListener("click", loadExampleData);
+    const headerLoad = document.getElementById("header-load-example");
+    if (headerLoad) {
+      headerLoad.addEventListener("click", loadExampleData);
+    }
+
+    {% if results %}
+    // --- CSV Download Export Functionality ---
+    const csvData = {{ results | tojson }};
+
+    function triggerCSVDownload() {
+      const header = [
+        "Name", "Length (aa)", "Mol. Weight (Da)", "Isoelectric Point (pI)",
+        "Instability Index", "Stable?", "Aromaticity", "GRAVY", "Hydrophobicity",
+        "Helix (%)", "Sheet (%)", "Turn (%)"
+      ];
+
+      const rows = csvData.map(function (r) {
+        const s = r.stats;
+        return [
+          '"' + r.name + '"',
+          s.length,
+          s.molecular_weight,
+          s.isoelectric_point,
+          s.instability_index,
+          s.instability_index < 40 ? "Stable" : "Unstable",
+          s.aromaticity,
+          s.gravy,
+          s.gravy < 0 ? "Hydrophilic" : "Hydrophobic",
+          s.secondary_structure.helix,
+          s.secondary_structure.sheet,
+          s.secondary_structure.turn
+        ];
+      });
+
+      const aaHeader = ["Name", "Amino Acid", "Composition (%)"];
+      const aaRows = [];
+      csvData.forEach(function (r) {
+        Object.entries(r.stats.amino_acid_percent).forEach(function ([aa, pct]) {
+          aaRows.push(['"' + r.name + '"', aa, pct]);
+        });
+      });
+
+      const lines = [
+        "# ProteoLens — Protein Analysis Report",
+        "",
+        "## Physicochemical Properties",
+        header.join(","),
+        ...rows.map(r => r.join(",")),
+        "",
+        "## Amino Acid Composition",
+        aaHeader.join(","),
+        ...aaRows.map(r => r.join(","))
+      ];
+      const csvText = lines.join("\n");
+
+      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = "proteolens_report.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("download-csv").addEventListener("click", triggerCSVDownload);
+    const headerDownload = document.getElementById("header-download-csv");
+    if (headerDownload) {
+      headerDownload.addEventListener("click", triggerCSVDownload);
+    }
+
+    // --- Interactive Motif Sequence Track Highlighting ---
+    document.querySelectorAll(".motif-chip-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        const pIdx = this.getAttribute("data-protein-idx");
+        const motifName = this.getAttribute("data-motif-name");
+        const positions = JSON.parse(this.getAttribute("data-positions"));
+        const viewer = document.getElementById("seq-viewer-" + pIdx);
+        const rawSeq = viewer.getAttribute("data-raw-seq");
+
+        let html = "";
+        for (let i = 0; i < rawSeq.length; i++) {
+          const pos1 = i + 1;
+          if (positions.includes(pos1)) {
+            html += '<span class="motif-mark" title="' + motifName + ' @ pos ' + pos1 + '">' + rawSeq[i] + '</span>';
+          } else {
+            html += rawSeq[i];
+          }
+        }
+        viewer.innerHTML = html;
+      });
+    });
+
+    // --- Apple Styled Chart.js Visuals ---
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#6e6e73';
+
+    // Chart 1: Molecular Weight Comparison
+    const weightCtx = document.getElementById('weightChart');
+    if (weightCtx) {
+      new Chart(weightCtx, {
+        type: 'bar',
+        data: {
+          labels: [{% for r in results %}"{{ r.name }}",{% endfor %}],
+          datasets: [{
+            label: 'Molecular Weight (Da)',
+            data: [{% for r in results %}{{ r.stats.molecular_weight }},{% endfor %}],
+            backgroundColor: '#0071e3',
+            borderRadius: 8,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(29, 29, 31, 0.9)',
+              padding: 10,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            }
+          }
+        }
+      });
+    }
+
+    // Chart 2: Amino Acid Composition with Gold Top Residue
+    document.querySelectorAll('.aaChart').forEach(function (canvas) {
+      const aaData = JSON.parse(canvas.getAttribute('data-aa'));
+      const values = Object.values(aaData);
+      const maxVal = Math.max(...values);
+      const colors = values.map(v => v === maxVal ? '#ff9500' : '#30b0c7');
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(aaData),
+          datasets: [{
+            label: '% composition',
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(29, 29, 31, 0.9)',
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(ctx) {
+                  const suffix = ctx.parsed.y === maxVal ? ' ★ Highest residue' : '';
+                  return ctx.parsed.y + '%' + suffix;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            }
+          }
+        }
+      });
+    });
+    {% endif %}
+  </script>
+
+</body>
+</html>
