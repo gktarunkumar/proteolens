@@ -168,7 +168,8 @@ def analyze_sequence(sequence):
 
 
 @app.route("/", methods=["GET", "POST"])
-def index():
+@app.route("/<path:path>", methods=["GET", "POST"])
+def index(path=""):
     results = []
     errors = []
     raw_input = ""
