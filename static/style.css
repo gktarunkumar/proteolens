@@ -468,6 +468,19 @@ textarea#fasta_input[aria-invalid="true"] {
 }
 
 /* --- Apple macOS-Style Table --- */
+.mobile-scroll-hint {
+  display: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--apple-blue);
+  background: rgba(0, 113, 227, 0.08);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  text-align: center;
+  margin-bottom: 0.85rem;
+  border: 1px solid rgba(0, 113, 227, 0.15);
+}
+
 .table-responsive {
   overflow-x: auto;
   margin: 0 -1.75rem;
@@ -734,6 +747,299 @@ footer {
   font-size: 0.75rem;
   margin-top: 2rem;
   line-height: 1.6;
+}
+
+/* ==========================================================================
+   Responsive & Mobile-First Optimizations (Apple HIG Mobile)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  body {
+    padding: 0 0.65rem 3rem;
+  }
+
+  /* Glass Header Mobile */
+  .glass-header {
+    position: sticky;
+    top: 0.5rem;
+    margin: 0.5rem auto 1rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 16px;
+    gap: 0.65rem;
+  }
+
+  .brand-wrap {
+    gap: 0.65rem;
+  }
+
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.15rem;
+    border-radius: 10px;
+  }
+
+  .brand-text h1 {
+    font-size: 1rem;
+  }
+
+  .brand-text p {
+    font-size: 0.68rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .header-actions button {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    min-block-size: 42px;
+    font-size: 0.82rem;
+  }
+
+  /* Card Mobile */
+  .apple-card {
+    padding: 1.15rem 0.85rem;
+    border-radius: 16px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .card-title-group h2,
+  .card-title-group h3 {
+    font-size: 1.05rem;
+  }
+
+  /* Segmented Controls Mobile */
+  .segmented-control {
+    width: 100%;
+    display: flex;
+  }
+
+  .seg-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.55rem 0.25rem;
+    font-size: 0.82rem;
+    min-height: 40px;
+  }
+
+  /* Form & Inputs Mobile */
+  textarea#fasta_input {
+    font-size: 16px !important; /* Prevents iOS Safari auto-zoom on input focus */
+    padding: 0.75rem;
+    min-height: 140px;
+    border-radius: 12px;
+  }
+
+  .file-upload-box {
+    padding: 1.5rem 1rem;
+  }
+
+  .upload-icon {
+    font-size: 1.8rem;
+  }
+
+  .upload-title {
+    font-size: 0.85rem;
+  }
+
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .action-bar > div:first-child {
+    text-align: center;
+    font-size: 0.74rem;
+  }
+
+  .action-bar > div:last-child {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  #load-example {
+    flex: 1;
+    min-block-size: 48px;
+    font-size: 0.85rem;
+  }
+
+  #btn-submit {
+    flex: 1.4;
+    min-block-size: 48px;
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+
+  /* KPI Summary Grid Mobile */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .kpi-card {
+    padding: 0.85rem 0.65rem;
+    border-radius: 14px;
+  }
+
+  .kpi-label {
+    font-size: 0.64rem;
+  }
+
+  .kpi-value {
+    font-size: 1.35rem;
+    margin-top: 0.15rem;
+  }
+
+  .kpi-subtext {
+    font-size: 0.68rem;
+  }
+
+  /* Responsive Table with Sticky First Column */
+  .mobile-scroll-hint {
+    display: block;
+  }
+
+  .table-responsive {
+    margin: 0 -0.85rem;
+    padding: 0 0.85rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 580px;
+  }
+
+  thead th:first-child,
+  tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+
+  thead th:first-child {
+    background: #f7f7f9;
+    z-index: 3;
+  }
+
+  tbody td:first-child {
+    background: #ffffff;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
+    font-weight: 700;
+  }
+
+  tbody tr:hover td:first-child {
+    background: #f2f7fd;
+  }
+
+  thead th {
+    padding: 0.6rem 0.55rem;
+    font-size: 0.68rem;
+  }
+
+  tbody td {
+    padding: 0.7rem 0.55rem;
+    font-size: 0.78rem;
+  }
+
+  .tag {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.45rem;
+  }
+
+  .interp {
+    font-size: 0.68rem;
+    margin-top: 0.15rem;
+  }
+
+  /* Secondary Structure Mobile */
+  .sec-struct-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .sec-struct-card {
+    padding: 0.85rem 0.75rem;
+    border-radius: 14px;
+  }
+
+  .struct-bar {
+    height: 12px;
+  }
+
+  .struct-legend {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+  }
+
+  /* Motif Sequence Viewer Mobile */
+  .motif-card {
+    padding: 0.85rem 0.75rem;
+    border-radius: 14px;
+  }
+
+  .motif-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .motif-chips {
+    width: 100%;
+    gap: 0.35rem;
+  }
+
+  .motif-chip-btn {
+    padding: 0.35rem 0.6rem;
+    min-height: 36px;
+    font-size: 0.72rem;
+  }
+
+  .sequence-viewer {
+    font-size: 0.74rem;
+    line-height: 1.85;
+    padding: 0.65rem;
+    border-radius: 8px;
+  }
+
+  #download-csv {
+    width: 100%;
+    min-block-size: 46px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .kpi-value {
+    font-size: 1.15rem;
+  }
+
+  .brand-text h1 {
+    font-size: 0.92rem;
+  }
 }
 
 /* --- Apple Reduced Motion --- */
